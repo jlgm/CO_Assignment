@@ -107,7 +107,7 @@ void send_mail(const char *to) {
 
 		curl_easy_setopt(curl, CURLOPT_URL, "smtps://smtp.gmail.com:465");
 		curl_easy_setopt(curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
-		curl_easy_setopt(curl, CURLOPT_CAINFO, "C:\\code\\WMI\\WMI\\Release\\cacert.pem");
+		curl_easy_setopt(curl, CURLOPT_CAINFO, "cacert.pem");
 		curl_easy_setopt(curl, CURLOPT_MAIL_FROM, "squallmdm@gmail.com");
 
 		recipients = curl_slist_append(recipients, "jlgm@cin.ufpe.br");
@@ -140,6 +140,7 @@ void send_mail(const char *to) {
 
 
 string get_attr(string xml_line) {
+
 	int it = 1;
 	string ans = "";
 	while (xml_line[it] != '>') it++; it++;
@@ -149,12 +150,11 @@ string get_attr(string xml_line) {
 
 void parse_server_config() {
 	ifstream infile;
-	infile.open("server_config.xml", ios_base::in);
+	infile.open("server_config.xml");
 
 	string tmp;
 
-	while (!infile.eof()) {
-		getline(infile, tmp); //reads <client>
+	while (getline(infile, tmp)) {
 
 		getline(infile, tmp);
 		string login = get_attr(tmp);
@@ -294,6 +294,8 @@ void handle_put(http_request request) {
 }
 
 int main() {
+
+	parse_server_config();
 
 	http_listener listener(L"http://127.0.0.1:3901");
 

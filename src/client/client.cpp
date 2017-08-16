@@ -116,7 +116,7 @@ void run() {
 	infile.close();
 	outfile.close();
 
-	system("pause");
+	//system("pause");
 }
 
 void display_field_map_json(json::value & jvalue)
@@ -237,10 +237,14 @@ int main() {
 	//putvalue.push_back(make_pair(L"one", json::value(L"100")));
 	//putvalue.push_back(make_pair(L"two", json::value(L"200")));
 
-	putvalue.push_back(make_pair(to_t("credentials"), json::value(to_t("["+username+","+password+"]"))));
-	putvalue.push_back(make_pair(to_t("stats"), json::value(to_t("[" + used_cpu + "," + used_mem + "," + to_string(processes.size()-1) + "]"))));
+	putvalue.push_back(make_pair(to_t("$credentials"), 
+		json::value(to_t("["+username+","+password+"]"))));
+
+	putvalue.push_back(make_pair(to_t("$stats"), 
+		json::value(to_t("[" + used_cpu + "," + used_mem + "," + to_string(processes.size()-1) + "]"))));
+
 	cout << username << password << endl;
-	system("pause");
+	//system("pause");
 
 	for (int i = 1; i < processes.size()-1; i++) {
 		
