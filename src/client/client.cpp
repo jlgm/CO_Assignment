@@ -4,9 +4,9 @@
 #include <stdlib.h>
 
 #include <string>
-#include <iostream>
 #include <vector>
 #include <fstream>
+#include <iostream>
 
 #include <cpprest/http_client.h>
 #include <cpprest/filestream.h>
@@ -17,6 +17,12 @@
 #define NAM 1
 #define MEM 9
 #define CPU 15
+
+#define to_t utility::conversions::to_string_t
+
+using namespace web;
+using namespace web::http;
+using namespace web::http::client;
 
 using namespace std;
 
@@ -33,6 +39,9 @@ struct process {
 };
 
 vector<process> processes;
+
+string host, username, password;
+string used_cpu, used_mem;
 
 //parses a tasklist generated file
 //generates a vector of words that are separated by "
@@ -70,6 +79,20 @@ void build_processes(vector<string> &lines) {
 	}
 }
 
+void open_config() {
+
+	ifstream infile;
+	infile.open("config.txt", ios_base::in);
+
+	string tmp;
+	getline(infile, host);
+	getline(infile, username);
+	getline(infile, password);
+
+	infile.close();
+
+}
+
 void run() {
 	system("tasklist /v /fo CSV > details.txt");
 
@@ -96,10 +119,139 @@ void run() {
 	system("pause");
 }
 
+void display_field_map_json(json::value & jvalue)
+{
+	if (!jvalue.is_null())
+	{
+		for (auto const & e : jvalue.as_object())
+		{
+			wcout << e.first << L" : " << e.second.as_string() << endl;
+		}
+	}
+}
+
+pplx::task<http_response> make_task_request(http_client & client,
+	method mtd,
+	json::value const & jvalue)
+{
+	return (mtd == methods::GET || mtd == methods::HEAD) ?
+		client.request(mtd, L"/restdemo") :
+		client.request(mtd, L"/restdemo", jvalue);
+}
+
+void make_request(http_client & client, method mtd, json::value const & jvalue)
+{
+	make_task_request(client, mtd, jvalue)
+		.then([](http_response response)
+	{
+		if (response.status_code() == status_codes::OK)
+		{
+			return response.extract_json();
+		}
+		return pplx::task_from_result(json::value());
+	})
+		.then([](pplx::task<json::value> previousTask)
+	{
+		try
+		{
+			display_field_map_json(previousTask.get());
+		}
+		catch (http_exception const & e)
+		{
+			wcout << e.what() << endl;
+		}
+	})
+		.wait();
+}
+
+void calculate_cpu_mem() {
+	system("wmic cpu get loadpercentage > cpu_data.txt");
+	system("wmic os get freephysicalmemory > free_mem.txt");
+	system("wmic computersystem get totalphysicalmemory > total_mem.txt");
+
+	ifstream infile;
+	infile.open("cpu_data.txt", ios_base::in);
+
+	string tmp;
+	getline(infile, tmp);
+	getline(infile, tmp);
+
+	for (int i = 0; i < tmp.size(); i++)
+		if (isdigit(tmp[i])) used_cpu.push_back(tmp[i]);
+	
+	infile.close();
+	
+	infile.open("free_mem.txt", ios_base::in);
+	getline(infile, tmp);
+	getline(infile, tmp);
+
+	string aux = "";
+
+	long long freemem, totmem;
+
+	for (int i = 0; i < tmp.size(); i++)
+		if (isdigit(tmp[i])) aux.push_back(tmp[i]);
+
+	sscanf(aux.c_str(), "%lld", &freemem);
+
+	infile.close();
+
+	infile.open("total_mem.txt", ios_base::in);
+	getline(infile, tmp);
+	getline(infile, tmp);
+
+	aux = "";
+
+	for (int i = 0; i < tmp.size(); i++)
+		if (isdigit(tmp[i])) aux.push_back(tmp[i]);
+
+	sscanf(aux.c_str(), "%lld", &totmem);
+	totmem /= 1024;
+
+	//cout << freemem << endl << totmem << endl;
+
+	long long per = 100 - (freemem * 100 / totmem);
+
+	//cout << used_cpu << endl << per << endl;
+
+	used_mem = to_string(per);
+
+	infile.close();
+
+	//system("pause");
+
+}
+
 int main() {
+
+	calculate_cpu_mem();
+	cout << used_cpu << endl << used_mem << endl;
 	
 	run();
+	open_config();
 
-    return 0;
+	http_client client(U("http://127.0.0.1:3901"));
+	
+
+	std::vector<std::pair< utility::string_t, json::value>> putvalue;
+	//putvalue.push_back(make_pair(L"one", json::value(L"100")));
+	//putvalue.push_back(make_pair(L"two", json::value(L"200")));
+
+	putvalue.push_back(make_pair(to_t("credentials"), json::value(to_t("["+username+","+password+"]"))));
+	putvalue.push_back(make_pair(to_t("stats"), json::value(to_t("[" + used_cpu + "," + used_mem + "," + to_string(processes.size()-1) + "]"))));
+	cout << username << password << endl;
+	system("pause");
+
+	for (int i = 1; i < processes.size()-1; i++) {
+		
+		putvalue.push_back(make_pair(to_t(processes[i].name),
+			json::value(to_t("["+processes[i].mem+","+ processes[i].cpu_t+"]"))));
+	}
+
+	make_request(client, methods::PUT, json::value::object(putvalue));
+
+	system("pause");
+
+	return 0;
 }
 
