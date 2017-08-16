@@ -1,0 +1,17 @@
+<client>
+<login>joao</login>
+<password>123</password>
+<email>joaogm@msn.com</email>
+<cpu>10</cpu>
+<mem>30</mem>
+<num_processes>40</num_processes>
+</client>
+
+<client>
+<login>carlos</login>
+<password>123</password>
+<email>pajurugi@go2vpn.net</email>
+<cpu>5</cpu>
+<mem>10</mem>
+<num_processes>20</num_processes>
+</client>
